@@ -12,4 +12,6 @@ open class RestdocsRamlPluginExtension(project: Project) {
     var snippetsDirectory = "build/generated-snippets"
 
     var outputFileNamePrefix = "api"
+
+    var inlineIncludes: Boolean = false
 }

@@ -25,6 +25,8 @@ class RestdocsRamlPlugin: Plugin<Project> {
                     snippetsDirectory = ramldoc.snippetsDirectory
 
                     outputFileNamePrefix = ramldoc.outputFileNamePrefix
+
+                    inlineIncludes = ramldoc.inlineIncludes
                 }
             }
         }

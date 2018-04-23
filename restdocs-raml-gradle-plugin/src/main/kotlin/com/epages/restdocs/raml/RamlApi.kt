@@ -8,9 +8,12 @@ data class RamlApi(val title: String, val baseUri: String?, val ramlVersion: Ram
         _resourceGroups.sortedBy { it.firstPathPart }
     }
 
-    fun toMainFileMap(groupFileNameProvider: (String) -> String) =
+    fun headerFileMap() =
             mapOf("title" to title)
                     .let { if (baseUri != null) it.plus("baseUri" to baseUri) else it }
+
+    fun toMainFileMap(groupFileNameProvider: (String) -> String) =
+            headerFileMap()
                     .plus(resourceGroups.map { it.firstPathPart to Include(groupFileNameProvider(it.firstPathPart)) } )
                     .toMap()
 

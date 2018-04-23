@@ -5,8 +5,10 @@ import com.fasterxml.jackson.databind.SerializationFeature
 import java.io.File
 
 
-open class JsonSchemaMerger(private val directory: File) {
+open class JsonSchemaMerger(private val sourceDirectory: File, private val targetDirectory: File) {
     private val objectMapper = ObjectMapper().enable(SerializationFeature.INDENT_OUTPUT)
+
+    constructor(directory: File): this(directory, directory)
 
     open fun mergeSchemas(schemas: List<Include>): Include {
         val targetInclude = schemas
@@ -15,13 +17,13 @@ open class JsonSchemaMerger(private val directory: File) {
                 .let { Include(it.location.replace(".json", "-merged.json")) }
 
         return schemas.reduce { i1, i2 ->
-            objectMapper.readValue(fileFromInclude(i1), Map::class.java)
+            objectMapper.readValue(sourceFileFromInclude(i1), Map::class.java)
                     .let { objectMapper.readerForUpdating(it) }
-                    .let { it.readValue<Map<*,*>>(fileFromInclude(i2)) }
-                    .let { objectMapper.writeValue(fileFromInclude(targetInclude), it) }
+                    .let { it.readValue<Map<*,*>>(sourceFileFromInclude(i2)) }
+                    .let { objectMapper.writeValue(File(targetDirectory, targetInclude.location), it) }
                     .let { targetInclude }
         }
     }
 
-    private fun fileFromInclude(include: Include) = File(directory, include.location)
+    private fun sourceFileFromInclude(include: Include) = File(sourceDirectory, include.location)
 }

@@ -23,6 +23,7 @@ class RestdocsRamlTaskTest {
     private var baseUri: String? = null
     private var ramlVersion = "1.0"
     private var separatePublicApi: Boolean = false
+    private var inlineIncludes: Boolean = false
     private var outputFileNamePrefix = "api"
     private lateinit var pluginClasspath: List<File>
     private lateinit var result: BuildResult
@@ -59,6 +60,22 @@ class RestdocsRamlTaskTest {
     }
 
     @Test
+    fun `should aggregate raml fragments and inline includes`() {
+        apiTitle = "Notes API"
+        baseUri = "http://localhost:8080/"
+        separatePublicApi = true
+        inlineIncludes = true
+        givenBuildFileWithRamldocClosure()
+        givenSnippetFiles()
+        givenRequestBodyJsonFile()
+
+        whenPluginExecuted()
+
+        result.task(":ramldoc")?.outcome `should equal` SUCCESS
+        thenApiRamlFileExistsWithHeaders().also { println(it) }
+    }
+
+    @Test
     fun `should aggregate raml fragments with missing ramldoc closure`() {
         givenBuildFileWithoutRamldocClosure()
         givenSnippetFiles()
@@ -79,7 +96,7 @@ class RestdocsRamlTaskTest {
     private fun thenGroupFileGenerated() {
         val groupFile = File(testProjectDir.root, "build/ramldoc/carts.raml")
         val groupFileLines = groupFile.readLines()
-        println(groupFile.readText())
+
         groupFileLines.any { it.startsWith("get:") }.`should be true`()
         groupFileLines.any { it.startsWith("post:") }.`should be true`()
         groupFileLines.any { it.startsWith("/{cartId}:") }.`should be true`()
@@ -95,7 +112,7 @@ class RestdocsRamlTaskTest {
     }
 
     private fun thenApiRamlFileGenerated() {
-        thenApiRamlFileExistsWithHeaders().also { lines ->
+        thenApiRamlFileExistsWithHeaders().also { println(it) }.also { lines ->
             lines `should contain` "/carts: !include 'carts.raml'"
             lines `should contain` "/: !include 'root.raml'"
         }
@@ -123,6 +140,7 @@ ramldoc {
     ramlVersion = "$ramlVersion"
     separatePublicApi = $separatePublicApi
     outputFileNamePrefix = "$outputFileNamePrefix"
+    inlineIncludes = $inlineIncludes
 }
 """)
     }

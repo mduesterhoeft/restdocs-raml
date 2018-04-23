@@ -40,20 +40,35 @@ object RamlWriter {
                 contentMap = it.toRamlMap(api.ramlVersion)) }
     }
 
-    fun writeFile(targetFile: File, contentMap: Map<*, *>, headerLine: String? = null) {
+    fun writeApiWithInlineIncludes(workDir: File, api: RamlApi, apiFileName: String) {
+
+        val resourceGroupsMap = api.resourceGroups
+                .map { Pair(it.firstPathPart, it.toRamlMap(api.ramlVersion)) }.toMap()
+
+        writeFile(targetFile = File(workDir, apiFileName),
+                contentMap = api.headerFileMap().plus(resourceGroupsMap),
+                headerLine = api.ramlVersion.versionString,
+                yaml = yamlWithInlineIncludeRepresenter(workDir))
+    }
+
+    fun writeFile(targetFile: File, contentMap: Map<*, *>, headerLine: String? = null, yaml: Yaml = yaml()) {
         targetFile.writer().let { writer ->
             headerLine?.let { writer.write("$it\n" ) }
-            yaml().dump(contentMap, writer)
+            yaml.dump(contentMap, writer)
         }
     }
 }
 
-private fun yaml() = Yaml(IncludeConstructor(), IncludeRepresenter(),
-        DumperOptions().apply {
-            defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
-            defaultScalarStyle = PLAIN
-            isAllowReadOnlyProperties = true
-        })
+internal fun yamlWithInlineIncludeRepresenter(workDir: File) = yaml(InlineIncludeRepresenter(workDir))
+internal fun yaml(includeRepresenter: Representer = IncludeRepresenter()) =
+        Yaml(
+                IncludeConstructor(),
+                includeRepresenter,
+                DumperOptions().apply {
+                    defaultFlowStyle = DumperOptions.FlowStyle.BLOCK
+                    defaultScalarStyle = PLAIN
+                    isAllowReadOnlyProperties = true
+                })
 
 data class Include(val location: String)
 
@@ -65,6 +80,20 @@ internal class IncludeRepresenter : Representer() {
     private inner class RepresentInclude: Represent {
         override fun representData(data: Any): Node {
             return representScalar(includeTag, (data as Include).location)
+        }
+    }
+}
+
+internal class InlineIncludeRepresenter(val includeDir: File) : Representer() {
+    init {
+        this.representers[Include::class.java] = RepresentInlineInclude()
+    }
+
+    private inner class RepresentInlineInclude: Represent {
+        override fun representData(data: Any): Node {
+            val includeContents= File(includeDir, (data as Include).location).reader().readText()
+            println("Representing include $data - with contents $includeContents")
+            return representScalar(Tag.STR, "|\n$includeContents")
         }
     }
 }

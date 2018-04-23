@@ -35,6 +35,9 @@ open class RestdocsRamlTask: DefaultTask() {
     @Input
     lateinit var outputFileNamePrefix: String
 
+    @Input
+    var inlineIncludes: Boolean = false
+
     private val outputDirectoryFile
         get() = project.file(outputDirectory)
 
@@ -59,7 +62,6 @@ open class RestdocsRamlTask: DefaultTask() {
             writeFiles(ramlFragments.filterNot { it.privateResource }, "-public.raml")
     }
 
-
     private fun writeFiles(ramlFragments: List<RamlFragment>, fileNameSuffix: String) {
 
         val ramlApi = ramlFragments.groupBy { it.path }
@@ -69,12 +71,17 @@ open class RestdocsRamlTask: DefaultTask() {
                         .map { (firstPathPart, resources) -> ResourceGroup(firstPathPart, resources) } }
                 .let { RamlApi(apiTitle, apiBaseUri, ramlVersion(), it) }
 
-        RamlWriter.writeApi(
-                fileFactory = { filename -> project.file("$outputDirectory/$filename") },
-                api = ramlApi,
-                apiFileName = "$outputFileNamePrefix$fileNameSuffix",
-                groupFileNameProvider = { path -> groupFileName(path, fileNameSuffix) }
-        )
+        val apiFileName = "$outputFileNamePrefix$fileNameSuffix"
+
+        if (inlineIncludes)
+            RamlWriter.writeApiWithInlineIncludes(project.file(outputDirectory), ramlApi, apiFileName)
+        else
+            RamlWriter.writeApi(
+                    fileFactory = { filename -> project.file("$outputDirectory/$filename") },
+                    api = ramlApi,
+                    apiFileName = apiFileName,
+                    groupFileNameProvider = { path -> groupFileName(path, fileNameSuffix) }
+            )
     }
 
     private fun groupFileName(path: String, fileNameSuffix: String): String {
